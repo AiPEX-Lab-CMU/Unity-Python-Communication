@@ -45,7 +45,7 @@ public class SendMessage : MonoBehaviour
 	{
 		mut.WaitOne();
 		System.Text.Encoding encoding = System.Text.Encoding.UTF8; //or some other, but prefer some UTF is Unicode is used
-		if (type == "001")
+		if (type == "001" || type == "003")
 			client.SendFrame(type + argument);
 		else
 		{

@@ -79,13 +79,13 @@ while True:
                     vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
         print(vertices)
         os.remove("1.obj")
-    elif data_type == "004":
-        millisecondsElapsed = int(message[3:].decode('utf-8'))
-        print("Time elapsed is %s" %(datetime.datetime.fromtimestamp(millisecondsElapsed / 1000.0).strftime('%H:%M:%S.%f')))
+    elif data_type == "003":
+        millisecondsElapsed = float(message[3:].decode('utf-8'))
+        print("Time elapsed is %f milliseconds" %(millisecondsElapsed))
         totalTime += millisecondsElapsed * 1.0
         number += 1.0
         averageTime = totalTime / number
-        print("Average time elapsed is %s" %(datetime.datetime.fromtimestamp(averageTime / 1000.0).strftime('%H:%M:%S.%f')))
+        print("Average time elapsed is %f milliseconds" %(averageTime))
     elif data_type == "End":
         print("Exiting")
         time.sleep(3)
