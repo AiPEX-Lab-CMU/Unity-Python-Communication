@@ -51,6 +51,7 @@ while True:
         socket.send("Infinity".encode('utf-8'))
     '''
     socket.send("Message Received".encode('utf-8'))
+    #Image
     if data_type == "000":
         print("image data is sent")
         with open("1.jpg", "wb") as f:
@@ -63,9 +64,11 @@ while True:
         os.remove("1.jpg")
         plt.imshow(matrix)
     elif data_type == "001":
+        #plaintext
         print("plaintext is sent")
         print(message[3:].decode('utf-8'))
     elif data_type == "002":
+        #point cloud
         print("point cloud data is sent")
         with open("1.obj", "wb") as f:
             f.write(message[11:])
@@ -80,6 +83,7 @@ while True:
         print(vertices)
         os.remove("1.obj")
     elif data_type == "003":
+        #time waiting for traffic light
         millisecondsElapsed = float(message[3:].decode('utf-8'))
         print("Time elapsed is %f milliseconds" %(millisecondsElapsed))
         totalTime += millisecondsElapsed * 1.0
