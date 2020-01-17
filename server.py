@@ -16,81 +16,116 @@ from stl import mesh
 import matplotlib.pyplot as plt
 from PIL import Image
 import datetime
+import argparse
+import threading
 
-context = zmq.Context()
-socket = context.socket(zmq.REP)
-socket.bind("tcp://*:5555")
-totalTime = 0.0
-averageTime = 0.0
-number = 0.0
 print("python server started")
-while True:
-    #  Wait for next request from client
-    message = socket.recv()
-    data_type = message[0:3].decode('utf-8')
-    '''
-    message = message.decode('utf-8')
-    print("Received request: %s" % message)
-    waitTimeAndTimesCrossed = message.split(',')
-    totalTime += int(waitTimeAndTimesCrossed[1])
-    if int(waitTimeAndTimesCrossed[0]) != 0:
-        averageTime = totalTime / int(waitTimeAndTimesCrossed[0])
+parser = argparse.ArgumentParser()
 
-    
-    #  Do some 'work'.
-    #  Try reducing sleep time to 0.01 to see how blazingly fast it communicates
-    #  In the real world usage, you just need to replace time.sleep() with
-    #  whatever work you want python to do, maybe a machine learning task?
-    time.sleep(1)
+parser.add_argument('-v', '--verbose', action='store_true', default = False,
+                    dest='simple_value', help='Print information when receiving data')
 
-    #  Send reply back to client
-    #  In the real world usage, after you finish your work, send your output here
-    if int(waitTimeAndTimesCrossed[0]) != 0:
-        socket.send(str(averageTime).encode('utf-8'))
-    else:
-        socket.send("Infinity".encode('utf-8'))
-    '''
-    socket.send("Message Received".encode('utf-8'))
-    #Image
-    if data_type == "000":
-        print("image data is sent")
-        with open("1.jpg", "wb") as f:
-            f.write(message[3:])
-        matrix = imageio.imread("1.jpg")
-        print("Matrix with shape of %s" %(matrix.shape,))
-        print(matrix)
-        im = Image.open("1.jpg")
-        im.show()
-        os.remove("1.jpg")
-        plt.imshow(matrix)
-    elif data_type == "001":
-        #plaintext
-        print("plaintext is sent")
-        print(message[3:].decode('utf-8'))
-    elif data_type == "002":
-        #point cloud
-        print("point cloud data is sent")
-        with open("1.obj", "wb") as f:
-            f.write(message[11:])
-        with open("1.obj", "r") as f:
-            lines = f.readlines()
-        vertices = []
-        for line in lines:
-            if len(line) > 0:
-                arguments = line.split(' ')
-                if len(arguments) == 4 and arguments[0] == "v":
-                    vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
-        print(vertices)
-        os.remove("1.obj")
-    elif data_type == "003":
-        #time waiting for traffic light
-        millisecondsElapsed = float(message[3:].decode('utf-8'))
-        print("Time elapsed is %f milliseconds" %(millisecondsElapsed))
-        totalTime += millisecondsElapsed * 1.0
-        number += 1.0
-        averageTime = totalTime / number
-        print("Average time elapsed is %f milliseconds" %(averageTime))
-    elif data_type == "End":
-        print("Exiting")
-        time.sleep(3)
-        sys.exit()
+result = parser.parse_args()
+
+carWaitTime = {}
+
+def receiveData():
+    global result
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://*:5555")
+    totalTime = 0.0
+    averageTime = 0.0
+    number = 0.0
+    verbose = result.simple_value
+    while True:
+        #  Wait for next request from client
+        message = socket.recv()
+        data_type = message[0:3].decode('utf-8')
+        socket.send("Message Received".encode('utf-8'))
+        currentTime = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S.%f")
+        #Image
+        if data_type == "000":
+            picName = "./snapshots/" + currentTime + ".jpg"
+            with open(picName, "wb") as f:
+                f.write(message[3:])
+            if verbose:
+                matrix = imageio.imread("1.jpg")
+                print("Matrix with shape of %s" %(matrix.shape,))
+                print(matrix)
+                im = Image.open("1.jpg")
+                im.show()
+                plt.imshow(matrix)
+        elif data_type == "001":
+            #plaintext
+            content = message[3:].decode('utf-8')
+            plaintextName = "./plaintext/" + currentTime + ".txt"
+            with open(plaintextName, "wb") as f:
+                f.write(content)
+            if verbose:
+                print(content)
+        elif data_type == "002":
+            #point cloud
+            objName = "./pointCloud/" + currentTime + ".obj"
+            with open(objName, "wb") as f:
+                f.write(message[11:])
+            with open(objName, "r") as f:
+                lines = f.readlines()
+            if verbose:
+                vertices = []
+                for line in lines:
+                    if len(line) > 0:
+                        arguments = line.split(' ')
+                        if len(arguments) == 4 and arguments[0] == "v":
+                            vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
+                print(vertices)
+        elif data_type == "003":
+            #time waiting for traffic light
+            waitTime = message[3:].decode('utf-8').split('#')
+            if verbose:
+                print(message[3:].decode('utf-8'))
+            carID = waitTime[0]
+            global carWaitTime
+            if carID not in carWaitTime:
+                carWaitTime[carID] = []
+            carWaitTime[carID].append((waitTime[1], waitTime[2], float(waitTime[3])))
+            #millisecondsElapsed = float(message[3:].decode('utf-8'))
+            #print("Time elapsed is %f milliseconds" %(millisecondsElapsed))
+            #totalTime += millisecondsElapsed * 1.0
+            #number += 1.0
+            #averageTime = totalTime / number
+            #print("Average time elapsed is %f milliseconds" %(averageTime))
+        elif data_type == "End":
+            print("Exiting")
+            time.sleep(3)
+            sys.exit()
+
+
+def interact():
+    while True:
+        global carWaitTime
+        command = input(">> ")
+        if command == "exit":
+            sys.exit()
+        args = command.split(" ")
+        if len(args) != 3:
+            print("Error: Invalid command")
+            continue
+        if args[0] == "show":
+            if args[1] == "trafficlight":
+                if args[2] == "all":
+                    for key, value in carWaitTime.items():
+                        print(key)
+                else:
+                    if args[2] in carWaitTime:
+                        print(carWaitTime[args[2]])
+
+threads = []
+t1 = threading.Thread(target = receiveData)
+t2 = threading.Thread(target = interact)
+threads.append(t1)
+threads.append(t2)
+t1.start()
+t2.start()
+t1.join()
+t2.join()
