@@ -9,12 +9,10 @@ Required packages for python(can be done via pip install):
 2. zmq
 3. numpy
 4. scipy
-5. io
-6. os
-7. stl
-8. matplotlib
-9. Pillow
-10. datetime
+5. numpy-stl
+6. matplotlib
+7. Pillow
+8. datetime
 
 When actually running:
 1. Run server.py
