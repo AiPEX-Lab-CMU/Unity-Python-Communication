@@ -18,6 +18,7 @@ from PIL import Image
 import datetime
 import argparse
 import threading
+import json
 
 print("python server started")
 parser = argparse.ArgumentParser()
@@ -28,6 +29,9 @@ parser.add_argument('-v', '--verbose', action='store_true', default = False,
 result = parser.parse_args()
 
 carWaitTime = {}
+
+#The dataset containing the data collected from Unity
+simulationDataset = []
 
 def receiveData():
     global result
@@ -59,11 +63,28 @@ def receiveData():
         elif data_type == "001":
             #plaintext
             content = message[3:].decode('utf-8')
-            plaintextName = "./plaintext/" + currentTime + ".txt"
-            with open(plaintextName, "wb") as f:
-                f.write(content)
+            receipt = {}
+            receipt['items'] = {}
+            receipt['Unavailable Items'] = 0
+            receipt['Time Spent'] = 0.0
+            parseItems = content.split('\n')
+            items = parseItems[0].split('\t')[1:]
+            for item in items:
+                if item in receipt['items']:
+                    receipt['items'][item] += 1
+                else:
+                    receipt['items'][item] = 1
+            receipt['Unavilaable Items'] = int(parseItems[1])
+            receipt['Time Spent'] = float(parseItems[2])
+            json_data = json.dumps(receipt)
+            simulationDataset.append(json_data)
             if verbose:
-                print(content)
+                print(json_data)
+            #plaintextName = "./plaintext/" + currentTime + ".txt"
+            #with open(plaintextName, "wb") as f:
+                #f.write(content)
+            #if verbose:
+                #print(content)
         elif data_type == "002":
             #point cloud
             objName = "./pointCloud/" + currentTime + ".obj"
@@ -89,43 +110,11 @@ def receiveData():
             if carID not in carWaitTime:
                 carWaitTime[carID] = []
             carWaitTime[carID].append((waitTime[1], waitTime[2], float(waitTime[3])))
-            #millisecondsElapsed = float(message[3:].decode('utf-8'))
-            #print("Time elapsed is %f milliseconds" %(millisecondsElapsed))
-            #totalTime += millisecondsElapsed * 1.0
-            #number += 1.0
-            #averageTime = totalTime / number
-            #print("Average time elapsed is %f milliseconds" %(averageTime))
         elif data_type == "End":
             print("Exiting")
             time.sleep(3)
             sys.exit()
 
+receiveData()
 
-def interact():
-    while True:
-        global carWaitTime
-        command = input(">> ")
-        if command == "exit":
-            sys.exit()
-        args = command.split(" ")
-        if len(args) != 3:
-            print("Error: Invalid command")
-            continue
-        if args[0] == "show":
-            if args[1] == "trafficlight":
-                if args[2] == "all":
-                    for key, value in carWaitTime.items():
-                        print(key)
-                else:
-                    if args[2] in carWaitTime:
-                        print(carWaitTime[args[2]])
-
-threads = []
-t1 = threading.Thread(target = receiveData)
-t2 = threading.Thread(target = interact)
-threads.append(t1)
-threads.append(t2)
-t1.start()
-t2.start()
-t1.join()
-t2.join()
+#TODO: Write your code here
