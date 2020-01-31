@@ -74,7 +74,7 @@ def receiveData():
                     receipt['items'][item] += 1
                 else:
                     receipt['items'][item] = 1
-            receipt['Unavilable Items'] = int(parseItems[1])
+            receipt['Unavailable Items'] = int(parseItems[1])
             receipt['Time Spent'] = float(parseItems[2])
             json_data = json.dumps(receipt)
             simulationDataset.append(json_data)
