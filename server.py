@@ -1,7 +1,5 @@
 #
-#   Hello World server in Python
 #   Binds REP socket to tcp://*:5555
-#   Expects b"Hello" from client, replies with b"World"
 #
 
 import time
@@ -30,11 +28,49 @@ result = parser.parse_args()
 
 carWaitTime = {}
 
-#The dataset containing the data collected from Unity
+nameTranslator = {}
+
+#The dataset containing the data collected from Unity, it will be filled with
+#data after calling receiveData, which blocks until the simulation is completed
 simulationDataset = []
 
+#This dictionary contains the prices for the different goods, use if after
+#receiveData() to lookup prices for items
+itemPrices = {}
+
+def initializeItems():
+    with open("items.txt", 'r') as item:
+        for lineRaw in item:
+            line = lineRaw.rstrip().split(' ')
+            nameTranslator[line[0]] = line[1]
+    with open('prices.txt', 'r') as price:
+        for lineRaw in price:
+            line = lineRaw.rstrip().split(' ')
+            itemPrices[line[0]] = round(float(line[1]), 2)
+    for _key, value in nameTranslator.items():
+        if value not in itemPrices:
+            print("Item is missing")
+            print(value) 
+
+def printReceipt(receipt):
+    global itemPrices
+    print("------Welcome to the Supermarket------")
+    print("Items in Cart:")
+    for key,value in receipt['Items'].items():
+        print("   " + key+' '*(17 - len(key))+str(value)+'x'+str(itemPrices[key]))
+    print("Unavailable Items:")
+    for key,value in receipt['Unavailable Items'].items():
+        print("   " + key+' '*(17 - len(key))+str(value))
+    print("Total Price:"+ ' ' * 12 + str(receipt['Total Price']))
+    print("Time Spent Waiting:" + ' ' * 12 + str(receipt['Time Spent']))
+    print("-----------Have a nice day!-----------\n")
+
+
+
 def receiveData():
+    global nameTranslator
     global result
+    global itemPrices
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:5555")
@@ -63,23 +99,38 @@ def receiveData():
         elif data_type == "001":
             #plaintext
             content = message[3:].decode('utf-8')
+            if content.startswith('Frustrated'):
+                print(content)
+                continue
             receipt = {}
-            receipt['items'] = {}
-            receipt['Unavailable Items'] = 0
+            receipt['Items'] = {}
+            receipt['Total Price'] = 0.0
             receipt['Time Spent'] = 0.0
             parseItems = content.split('\n')
-            items = parseItems[0].split('\t')[1:]
+            items = parseItems[0].split('\t')
+            items.pop(0)
             for item in items:
-                if item in receipt['items']:
-                    receipt['items'][item] += 1
+                correctName = nameTranslator[item]
+                if item in receipt['Items']:
+                    receipt['Items'][correctName] += 1
                 else:
-                    receipt['items'][item] = 1
-            receipt['Unavailable Items'] = int(parseItems[1])
-            receipt['Time Spent'] = float(parseItems[2])
+                    receipt['Items'][correctName] = 1
+                receipt['Total Price'] += itemPrices[correctName]
+            receipt['Total Price'] = round(receipt['Total Price'], 2)
+            receipt['Unavailable Items'] = {}
+            unavailableItems = parseItems[1].split('\t')
+            unavailableItems.pop(0)
+            for item in unavailableItems:
+                correctName = nameTranslator[item]
+                if item in receipt['Unavailable Items']:
+                    receipt['Unavailable Items'][correctName] += 1
+                else:
+                    receipt['Unavailable Items'][correctName] = 1
+            receipt['Time Spent'] = round(float(parseItems[2]), 2)
+            if verbose:
+                printReceipt(receipt)
             json_data = json.dumps(receipt)
             simulationDataset.append(json_data)
-            if verbose:
-                print(json_data)
             #plaintextName = "./plaintext/" + currentTime + ".txt"
             #with open(plaintextName, "wb") as f:
                 #f.write(content)
@@ -115,6 +166,10 @@ def receiveData():
             time.sleep(3)
             sys.exit()
 
-receiveData()
+def main():
+    initializeItems()
+    receiveData()
+    #TODO: Write your code here
 
-#TODO: Write your code here
+if __name__ == "__main__":
+    main()
