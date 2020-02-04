@@ -38,6 +38,7 @@ simulationDataset = []
 #receiveData() to lookup prices for items
 itemPrices = {}
 
+#Initialize names and prices of items to be filled with essential information
 def initializeItems():
     with open("items.txt", 'r') as item:
         for lineRaw in item:
@@ -52,6 +53,7 @@ def initializeItems():
             print("Item is missing")
             print(value) 
 
+#Print receipt in understandable format
 def printReceipt(receipt):
     global itemPrices
     print("------Welcome to the Supermarket------")
@@ -66,7 +68,7 @@ def printReceipt(receipt):
     print("-----------Have a nice day!-----------\n")
 
 
-
+#Communicate with Python to fetch data
 def receiveData():
     global nameTranslator
     global result
