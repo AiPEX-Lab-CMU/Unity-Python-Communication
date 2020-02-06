@@ -1,20 +1,13 @@
 # Unity-Python-Communication
 Contains the newest version of the Python Communication components
 
-How to use:
-Install the 2 .dll files (in vscode that is Project->Add Reference->Choose the 2 files and click ok
-When want to send something, call SendMessage.sendBytes(), 1st argument is data type and 2nd argument is the file position of the stored data
-Required packages for python(can be done via pip install):
-1. time
-2. zmq
-3. numpy
-4. scipy
-5. numpy-stl
-6. matplotlib
-7. Pillow
-8. datetime
+The first time before starting the simulation:
+1. Run setup.py (python setup.py), this will install the required packages for the python component.
 
-When actually running:
-1. Run server.py
-2. Directly start the unity side and it will start sending messages when the function SendMessage.sendBytes() is called
-3. When the unity side exits the python side will exit too
+To start the simulation:
+1. Run server.py, to enable printing out the receipts during data collection, option verbose is required (-v or --verbose).
+2. Run the executable and click "start simulation".
+3. If the verbose is enabled, you'll see the receipts popping out when the customers checkout.
+4. The python side is blocked during the simulation process, after the simulation ends the python side will continue executing.
+
+** Always make sure that the python side is running during the simulation or the simulation will get stuck (the same applies to the python side, it will be blocked until an instance of simulation has terminated).
