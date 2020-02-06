@@ -113,7 +113,7 @@ def receiveData():
             items.pop(0)
             for item in items:
                 correctName = nameTranslator[item]
-                if item in receipt['Items']:
+                if correctName in receipt['Items']:
                     receipt['Items'][correctName] += 1
                 else:
                     receipt['Items'][correctName] = 1
@@ -124,7 +124,7 @@ def receiveData():
             unavailableItems.pop(0)
             for item in unavailableItems:
                 correctName = nameTranslator[item]
-                if item in receipt['Unavailable Items']:
+                if correctName in receipt['Unavailable Items']:
                     receipt['Unavailable Items'][correctName] += 1
                 else:
                     receipt['Unavailable Items'][correctName] = 1
