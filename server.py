@@ -67,6 +67,54 @@ def printReceipt(receipt):
     print("Time Spent Waiting:" + ' ' * 12 + str(receipt['Time Spent']))
     print("-----------Have a nice day!-----------\n")
 
+def handlePicture(message, currentTime):
+    global result
+    verbose = result.simple_value
+    picName = "./snapshots/" + currentTime + ".jpg"
+    with open(picName, "wb") as f:
+        f.write(message[3:])
+    if verbose:
+        matrix = imageio.imread("1.jpg")
+        print("Matrix with shape of %s" % (matrix.shape,))
+        print(matrix)
+        im = Image.open("1.jpg")
+        im.show()
+        plt.imshow(matrix)
+
+def handlePointCloud(message, currentTime):
+    global result
+    verbose = result.simple_value
+    #point cloud
+    objName = "./pointCloud/" + currentTime + ".obj"
+    with open(objName, "wb") as f:
+        f.write(message[11:])
+    with open(objName, "r") as f:
+        lines = f.readlines()
+    if verbose:
+        vertices = []
+        for line in lines:
+            if len(line) > 0:
+                arguments = line.split(' ')
+                if len(arguments) == 4 and arguments[0] == "v":
+                    vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
+        print(vertices)
+
+def writeToFile(simulationDataset):
+    f = open('output.txt', 'w')
+    for (index, data) in enumerate(simulationDataset):
+        entry = ""
+        entry += str(index)
+        entry += " "
+        for key, val in data['Items'].items():
+            for _i in range(val):
+                entry += key
+                entry += ","
+        entry = entry[:-1]
+        entry += "\n"
+        f.write(entry)
+    f.close()
+
+
 
 #Communicate with Python to fetch data
 def receiveData():
@@ -80,6 +128,8 @@ def receiveData():
     averageTime = 0.0
     number = 0.0
     verbose = result.simple_value
+    totalRevenue = 0.0
+    totalWaitingTime = 0.0
     while True:
         #  Wait for next request from client
         message = socket.recv()
@@ -88,16 +138,7 @@ def receiveData():
         currentTime = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S.%f")
         #Image
         if data_type == "000":
-            picName = "./snapshots/" + currentTime + ".jpg"
-            with open(picName, "wb") as f:
-                f.write(message[3:])
-            if verbose:
-                matrix = imageio.imread("1.jpg")
-                print("Matrix with shape of %s" %(matrix.shape,))
-                print(matrix)
-                im = Image.open("1.jpg")
-                im.show()
-                plt.imshow(matrix)
+            handlePicture(message, currentTime)
         elif data_type == "001":
             #plaintext
             content = message[3:].decode('utf-8')
@@ -119,6 +160,7 @@ def receiveData():
                     receipt['Items'][correctName] = 1
                 receipt['Total Price'] += itemPrices[correctName]
             receipt['Total Price'] = round(receipt['Total Price'], 2)
+            totalRevenue += receipt['Total Price']
             receipt['Unavailable Items'] = {}
             unavailableItems = parseItems[1].split('\t')
             unavailableItems.pop(0)
@@ -129,30 +171,18 @@ def receiveData():
                 else:
                     receipt['Unavailable Items'][correctName] = 1
             receipt['Time Spent'] = round(float(parseItems[2]), 2)
+            totalWaitingTime += receipt['Time Spent']
             if verbose:
                 printReceipt(receipt)
             json_data = json.dumps(receipt)
-            simulationDataset.append(json_data)
+            simulationDataset.append(receipt)
             #plaintextName = "./plaintext/" + currentTime + ".txt"
             #with open(plaintextName, "wb") as f:
                 #f.write(content)
             #if verbose:
                 #print(content)
         elif data_type == "002":
-            #point cloud
-            objName = "./pointCloud/" + currentTime + ".obj"
-            with open(objName, "wb") as f:
-                f.write(message[11:])
-            with open(objName, "r") as f:
-                lines = f.readlines()
-            if verbose:
-                vertices = []
-                for line in lines:
-                    if len(line) > 0:
-                        arguments = line.split(' ')
-                        if len(arguments) == 4 and arguments[0] == "v":
-                            vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
-                print(vertices)
+            handlePointCloud(message, currentTime)
         elif data_type == "003":
             #time waiting for traffic light
             waitTime = message[3:].decode('utf-8').split('#')
@@ -166,7 +196,10 @@ def receiveData():
         elif data_type == "End":
             print("Exiting")
             time.sleep(3)
-            sys.exit()
+            break
+    writeToFile(simulationDataset)
+    print("Total Revenue: %.2f" %(round(totalRevenue,2),))
+    print("Total Waiting Time: %.2f" %(round(totalWaitingTime,2),))
 
 def main():
     initializeItems()
