@@ -109,7 +109,12 @@ def writeToFile(simulationDataset):
             for _i in range(val):
                 entry += key
                 entry += ","
+        if data['Left Early']:
+            entry += "Left out of frustration"
+            entry += ","
         entry = entry[:-1]
+        entry += " "
+        entry += str(data['Time Spent'])
         entry += "\n"
         f.write(entry)
     f.close()
@@ -149,10 +154,14 @@ def receiveData():
             receipt['Items'] = {}
             receipt['Total Price'] = 0.0
             receipt['Time Spent'] = 0.0
+            receipt['Left Early'] = False
             parseItems = content.split('\n')
             items = parseItems[0].split('\t')
             items.pop(0)
             for item in items:
+                if item == "Frustrated":
+                    receipt['Left Early'] = True
+                    continue
                 correctName = nameTranslator[item]
                 if correctName in receipt['Items']:
                     receipt['Items'][correctName] += 1
