@@ -17,6 +17,7 @@ import datetime
 import argparse
 import threading
 import json
+import random
 
 print("python server started")
 parser = argparse.ArgumentParser()
@@ -67,19 +68,23 @@ def printReceipt(receipt):
     print("Time Spent Waiting:" + ' ' * 12 + str(receipt['Time Spent']))
     print("-----------Have a nice day!-----------\n")
 
-def handlePicture(message, currentTime):
+def handlePicture(message, currentTime, socket):
     global result
     verbose = result.simple_value
     picName = "./snapshots/" + currentTime + ".jpg"
     with open(picName, "wb") as f:
         f.write(message[3:])
     if verbose:
-        matrix = imageio.imread("1.jpg")
+        matrix = imageio.imread(picName)
         print("Matrix with shape of %s" % (matrix.shape,))
         print(matrix)
-        im = Image.open("1.jpg")
+        im = Image.open(picName)
         im.show()
         plt.imshow(matrix)
+    #TODO: Replace the line below with your own algorithm to determine if products need to be restocked, still the final result will need to be a boolean named restock to determine if items need to restocked or not
+    restock = random.choice([True, False]) 
+    option = "True" if restock else "False"
+    socket.send(option.encode('utf-8'))
 
 def handlePointCloud(message, currentTime):
     global result
@@ -139,11 +144,12 @@ def receiveData():
         #  Wait for next request from client
         message = socket.recv()
         data_type = message[0:3].decode('utf-8')
-        socket.send("Message Received".encode('utf-8'))
+        if data_type != "000":
+            socket.send("Message Received".encode('utf-8'))
         currentTime = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S.%f")
         #Image
         if data_type == "000":
-            handlePicture(message, currentTime)
+            handlePicture(message, currentTime, socket)
         elif data_type == "001":
             #plaintext
             content = message[3:].decode('utf-8')
