@@ -140,13 +140,15 @@ def receiveData():
     verbose = result.simple_value
     totalRevenue = 0.0
     totalWaitingTime = 0.0
+    if not os.path.isdir("./snapshots/"):
+        os.mkdir("./snapshots/")
     while True:
         #  Wait for next request from client
         message = socket.recv()
         data_type = message[0:3].decode('utf-8')
         if data_type != "000":
             socket.send("Message Received".encode('utf-8'))
-        currentTime = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S.%f")
+        currentTime = str(int(time.time()*100))
         #Image
         if data_type == "000":
             handlePicture(message, currentTime, socket)
