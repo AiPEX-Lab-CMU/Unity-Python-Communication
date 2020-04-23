@@ -81,28 +81,9 @@ def handlePicture(message, currentTime, socket):
         im = Image.open(picName)
         im.show()
         plt.imshow(matrix)
-    #TODO: Replace the line below with your own algorithm to determine if products need to be restocked, still the final result will need to be a boolean named restock to determine if items need to restocked or not
     restock = random.choice([True, False]) 
     option = "True" if restock else "False"
     socket.send(option.encode('utf-8'))
-
-def handlePointCloud(message, currentTime):
-    global result
-    verbose = result.simple_value
-    #point cloud
-    objName = "./pointCloud/" + currentTime + ".obj"
-    with open(objName, "wb") as f:
-        f.write(message[11:])
-    with open(objName, "r") as f:
-        lines = f.readlines()
-    if verbose:
-        vertices = []
-        for line in lines:
-            if len(line) > 0:
-                arguments = line.split(' ')
-                if len(arguments) == 4 and arguments[0] == "v":
-                    vertices.append([float(arguments[1]), float(arguments[2]), float(arguments[3])])
-        print(vertices)
 
 def writeToFile(simulationDataset):
     f = open('output.txt', 'w')
@@ -123,6 +104,22 @@ def writeToFile(simulationDataset):
         entry += "\n"
         f.write(entry)
     f.close()
+
+#TODO: Implement this function to generate reply for information sent to python
+#(it is already parsed for you), the input are as follows:
+#pos: A tuple for the position of the robot
+#rot: The current rotation of the robot, in degrees
+#zoom: A float for the current zoom angle of the robot's camera
+#halfEmpty: False if the items on the shelf the robot is currently facing are not half taken (or the robot is not facing a shelf), true otherwise
+#matrix: A image matrix standing for the screenshot captured by the camera
+#The generated reply should be a python list of numbers:[<rotation>, <zoom>, <restock>]
+#rotation: The new degree for the robot to rotate by, so if the robot currently has a degree of rotation of 180, and you reply with 90 then the robot will rotate to 270
+#zoom: The new zoom angle for the robot's camera, it will be directly SET to that angle
+#restock: 0 or 1 indicating whether we need to restock
+#When the robot receives the reply, it will first check the restock signal, then rotate by the designated angle, followed by setting the move direction and the camera zoom angle
+#When you want the robot to stop, just reply with empty list instead of the normal reply, the robot will stop PERMANENTLY
+def generateReply(pos, rot, zoom, halfEmpty, matrix):
+    return [0, 0, 0]
 
 
 
@@ -146,7 +143,7 @@ def receiveData():
         #  Wait for next request from client
         message = socket.recv()
         data_type = message[0:3].decode('utf-8')
-        if data_type != "000":
+        if data_type != "002":
             socket.send("Message Received".encode('utf-8'))
         currentTime = str(int(time.time()*100))
         #Image
@@ -191,25 +188,32 @@ def receiveData():
             totalWaitingTime += receipt['Time Spent']
             if verbose:
                 printReceipt(receipt)
-            json_data = json.dumps(receipt)
             simulationDataset.append(receipt)
-            #plaintextName = "./plaintext/" + currentTime + ".txt"
-            #with open(plaintextName, "wb") as f:
-                #f.write(content)
-            #if verbose:
-                #print(content)
         elif data_type == "002":
-            handlePointCloud(message, currentTime)
-        elif data_type == "003":
-            #time waiting for traffic light
-            waitTime = message[3:].decode('utf-8').split('#')
-            if verbose:
-                print(message[3:].decode('utf-8'))
-            carID = waitTime[0]
-            global carWaitTime
-            if carID not in carWaitTime:
-                carWaitTime[carID] = []
-            carWaitTime[carID].append((waitTime[1], waitTime[2], float(waitTime[3])))
+            contentLength = int(message[3:5].decode('utf-8'))
+            content = message[5:5+contentLength].decode('utf-8')
+            if result.simple_value:
+                print(content)
+            infos = content.split('|')
+            pictureBytes = message[5+contentLength:]
+            with open("1.jpg", 'wb') as f:
+                f.write(pictureBytes)
+            matrix = imageio.imread("1.jpg")
+            if result.simple_value:
+                print("Matrix with shape of %s" % (matrix.shape,))
+            posStr = infos[0].strip(')').strip('(').split(',')
+            pos = (float(posStr[0]), float(posStr[1]), float(posStr[2]))
+            rot = float(infos[1])
+            zoom = float(infos[2])
+            halfEmpty = False
+            if infos[2] == "1":
+                halfEmpty = True
+            replyData = generateReply(pos, rot, zoom, halfEmpty, matrix)
+            reply = ""
+            reply = '|'.join(str(x) for x in replyData)
+            if result.simple_value:
+                print(reply)
+            socket.send(reply.encode('utf-8'))
         elif data_type == "End":
             print("Exiting")
             time.sleep(3)
